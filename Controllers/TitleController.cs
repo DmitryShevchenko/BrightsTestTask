@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -28,15 +29,13 @@ namespace TestTask.Controllers
         {
             var responseList = new List<Response>();
 
-            Parallel.ForEach(data, (url) => { responseList.Add(_titleService.GetTitleByUrl(url).Result); });
-            Parallel.ForEach(responseList,
-                (item) =>
-                {
-                    _db.Responses.Add(new Response()
-                        {StatusCode = item.StatusCode, Url = item.Url, Title = item.Title});
-                });
+            Parallel.ForEach(data, (url) => { responseList.Add( _titleService.GetTitleByUrl(url).Result); });
+            responseList.ForEach(item => 
+            {
+                _db.Responses.Add(new Response()
+                    {StatusCode = item.StatusCode, Url = item.Url, Title = item.Title});
+            });
             await _db.SaveChangesAsync();
-            
             return responseList;
         }
 

@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -14,7 +15,6 @@ namespace TestTask.Controllers
     public class TitleController : Controller
     {
         private readonly ITitleService _titleService;
-
         private readonly AppDbContext _db;
 
         public TitleController(ITitleService titleService, AppDbContext appDbContext)
@@ -27,16 +27,16 @@ namespace TestTask.Controllers
         [HttpPost("[action]")]
         public async Task<List<Response>> PostTitleData([FromBody] string[] data)
         {
-            var responseList = new List<Response>();
-
-            Parallel.ForEach(data, (url) => { responseList.Add( _titleService.GetTitleByUrl(url).Result); });
-            responseList.ForEach(item => 
+            var responses = new ConcurrentBag<Response>();
+            var tasks = data.Select(async url =>
             {
-                _db.Responses.Add(new Response()
-                    {StatusCode = item.StatusCode, Url = item.Url, Title = item.Title});
+                var item = await _titleService.GetTitleByUrl(url);
+                _db.Responses.Add(item);
+                responses.Add(item);
             });
+            await Task.WhenAll(tasks);
             await _db.SaveChangesAsync();
-            return responseList;
+            return responses.ToList();
         }
 
         [HttpGet("[action]")]
@@ -48,7 +48,6 @@ namespace TestTask.Controllers
         {
             _db.Responses.RemoveRange(_db.Responses.Select(x => x));
             await _db.SaveChangesAsync();
-
             return Ok();
         }
     }

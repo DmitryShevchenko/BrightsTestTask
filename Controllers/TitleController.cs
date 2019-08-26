@@ -27,16 +27,15 @@ namespace TestTask.Controllers
         [HttpPost("[action]")]
         public async Task<List<Response>> PostTitleData([FromBody] string[] data)
         {
-            var responses = new ConcurrentBag<Response>();
+            var responses = new List<Response>();
             var tasks = data.Select(async url =>
             {
-                var item = await _titleService.GetTitleByUrl(url);
-                _db.Responses.Add(item);
-                responses.Add(item);
+                responses.Add(await _titleService.GetTitleByUrl(url));
             });
             await Task.WhenAll(tasks);
+            await _db.Responses.AddRangeAsync(responses);
             await _db.SaveChangesAsync();
-            return responses.ToList();
+            return responses;
         }
 
         [HttpGet("[action]")]
